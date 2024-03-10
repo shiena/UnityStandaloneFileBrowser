@@ -10,7 +10,20 @@ A simple wrapper for native file dialogs on Windows/Mac/Linux.
 - Linux support by [Ricardo Rodrigues](https://github.com/RicardoEPRodrigues).
 - Basic WebGL support.
 
-[Download Package](https://github.com/gkngkc/UnityStandaloneFileBrowser/releases/download/1.2/StandaloneFileBrowser.unitypackage)
+## Installation
+
+<details>
+<summary>Add from GitHub | <em>not recommended, no updates through PackMan</em></summary>
+
+You can also add it directly from GitHub on Unity 2019.4+. Note that you won't be able to receive updates through Package Manager this way, you'll have to update manually.
+
+- open Package Manager
+- click <kbd>+</kbd>
+- select <kbd>Add from Git URL</kbd>
+- paste `https://github.com/shiena/UnityStandaloneFileBrowser.git?path=Packages/StandaloneFileBrowser#upm`
+- click <kbd>Add</kbd>
+</details>
+
 
 Example usage:
 

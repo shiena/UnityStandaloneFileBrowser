@@ -45,6 +45,12 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
+    "io.github.gkngkc.unity-standalone-file-browser": {
+      "version": "file:StandaloneFileBrowser",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.modules.ai": {
       "version": "1.0.0",
       "depth": 0,
