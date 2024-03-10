@@ -4,7 +4,13 @@ using System;
 using System.IO;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
+#if UNITY_2023_2_0 || UNITY_2023_2_1 || UNITY_2023_2_2 || UNITY_2023_2_3 || UNITY_2023_2_4 || UNITY_2023_2_5 || UNITY_2023_2_6 || UNITY_2023_2_7 || UNITY_2023_2_8 || UNITY_2023_2_9 || UNITY_2023_2_10 || UNITY_2023_2_11 || UNITY_2023_2_12 || UNITY_2023_2_13 || UNITY_2023_2_14 || UNITY_2023_2_15 || UNITY_2023_2_16 || UNITY_2023_2_17 || UNITY_2023_2_18 || UNITY_2023_2_19
+using VistaOpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using VistaFolderBrowserDialog = System.Windows.Forms.FolderBrowserDialog;
+using VistaSaveFileDialog = System.Windows.Forms.SaveFileDialog;
+#else
 using Ookii.Dialogs.WinForms;
+#endif
 
 namespace SFB {
     // For fullscreen support
