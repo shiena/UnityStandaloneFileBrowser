@@ -9,6 +9,16 @@ A simple wrapper for native file dialogs on Windows/Mac/Linux.
 - Mono/IL2CPP backends supported.
 - Linux support by [Ricardo Rodrigues](https://github.com/RicardoEPRodrigues).
 - Basic WebGL support.
+- Merged
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/76
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/91
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/97
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/100
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/106
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/116 
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/127
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/137
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/issues/135#issuecomment-1987555796
 
 ## Installation
 
