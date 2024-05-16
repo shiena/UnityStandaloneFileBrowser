@@ -23,6 +23,24 @@ A simple wrapper for native file dialogs on Windows/Mac/Linux.
 ## Installation
 
 <details>
+<summary>Add from OpenUPM <em>| via scoped registry, recommended</em></summary>
+
+To add OpenUPM to your project:
+
+- open `Edit/Project Settings/Package Manager`
+- add a new Scoped Registry:
+```
+Name: OpenUPM
+URL:  https://package.openupm.com/
+Scope(s): com.gilzoide
+```
+- click <kbd>Save</kbd>
+- open Package Manager
+- Select ``My Registries`` in dropdown top left
+- Select ``Unity Standalone File Browser`` and click ``Install``
+</details>
+
+<details>
 <summary>Add from GitHub | <em>not recommended, no updates through PackMan</em></summary>
 
 You can also add it directly from GitHub on Unity 2019.4+. Note that you won't be able to receive updates through Package Manager this way, you'll have to update manually.
