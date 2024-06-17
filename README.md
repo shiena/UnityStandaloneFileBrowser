@@ -1,4 +1,5 @@
 # Unity Standalone File Browser
+[![openupm](https://img.shields.io/npm/v/io.github.gkngkc.unity-standalone-file-browser?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/io.github.gkngkc.unity-standalone-file-browser/)
 
 A simple wrapper for native file dialogs on Windows/Mac/Linux.
 
@@ -32,7 +33,7 @@ To add OpenUPM to your project:
 ```
 Name: OpenUPM
 URL:  https://package.openupm.com/
-Scope(s): com.gilzoide
+Scope(s): io.github.gkngkc.unity-standalone-file-browser
 ```
 - click <kbd>Save</kbd>
 - open Package Manager
