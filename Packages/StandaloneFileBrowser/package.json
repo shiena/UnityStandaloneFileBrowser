@@ -3,7 +3,7 @@
   "displayName": "Unity Standalone File Browser",
   "author": { "name": "gkngkc", "url": "https://github.com/gkngkc" },
   "description": "A simple wrapper for native file dialogs on Windows/Mac/Linux.",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "license": "MIT",
   "samples": [
     {

@@ -20,6 +20,7 @@ A simple wrapper for native file dialogs on Windows/Mac/Linux.
   - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/127
   - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/137
   - https://github.com/gkngkc/UnityStandaloneFileBrowser/issues/135#issuecomment-1987555796
+  - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/146 
 
 ## Installation
 
