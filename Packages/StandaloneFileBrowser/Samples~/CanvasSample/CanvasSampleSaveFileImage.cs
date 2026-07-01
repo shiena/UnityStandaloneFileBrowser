@@ -1,6 +1,4 @@
 using System.IO;
-using System.Text;
-using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -27,21 +25,29 @@ public class CanvasSampleSaveFileImage : MonoBehaviour, IPointerDownHandler {
         UnityEngine.Object.Destroy(tex);
     }
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-    //
-    // WebGL
-    //
-    [DllImport("__Internal")]
-    private static extern void DownloadFile(string gameObjectName, string methodName, string filename, byte[] byteArray, int byteArraySize);
-
-    // Broser plugin should be called in OnPointerDown.
+#if UNITY_WEBGL
+    // Browser plugin should be called in OnPointerDown.
     public void OnPointerDown(PointerEventData eventData) {
-        DownloadFile(gameObject.name, "OnFileDownload", "sample.png", _textureBytes, _textureBytes.Length);
+        StandaloneFileBrowserWebGL.SaveFileAsync("sample.png", _textureBytes, "image/png", OnFileSaved);
     }
 
-    // Called from browser
-    public void OnFileDownload() {
-        output.text = "File Successfully Downloaded";
+    private void OnFileSaved(WebGLSaveResult result) {
+        if (result.Status == WebGLSaveStatus.Success) {
+            output.text = "File successfully downloaded";
+            return;
+        }
+
+        if (result.Status == WebGLSaveStatus.Busy) {
+            output.text = "Another save request is already in progress";
+            return;
+        }
+
+        if (result.Status == WebGLSaveStatus.BlockedByBrowser) {
+            output.text = string.IsNullOrEmpty(result.ErrorMessage) ? "Browser blocked the download request" : result.ErrorMessage;
+            return;
+        }
+
+        output.text = string.IsNullOrEmpty(result.ErrorMessage) ? "Browser file save failed" : result.ErrorMessage;
     }
 #else
     //

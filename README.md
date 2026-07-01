@@ -1,7 +1,7 @@
 # Unity Standalone File Browser
 [![openupm](https://img.shields.io/npm/v/io.github.gkngkc.unity-standalone-file-browser?label=openupm&registry_uri=https://package.openupm.com)](https://openupm.com/packages/io.github.gkngkc.unity-standalone-file-browser/)
 
-A simple wrapper for native file dialogs on Windows/Mac/Linux.
+A simple wrapper for native file dialogs on Windows/Mac/Linux, plus a dedicated WebGL browser file API.
 
 - Works in editor and runtime.
 - Open file/folder, save file dialogs supported.
@@ -9,7 +9,7 @@ A simple wrapper for native file dialogs on Windows/Mac/Linux.
 - File extension filter.
 - Mono/IL2CPP backends supported.
 - Linux support by [Ricardo Rodrigues](https://github.com/RicardoEPRodrigues).
-- Basic WebGL support.
+- Dedicated WebGL browser file API.
 - Merged
   - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/76
   - https://github.com/gkngkc/UnityStandaloneFileBrowser/pull/91
@@ -108,9 +108,50 @@ Notes:
     * Sync calls are throws an exception at development build after native panel loses and gains focus. Use async calls to avoid this.
 
 WebGL:
- - Basic upload/download file support.
- - File filter support.
- - Not well tested, probably not much reliable.
- - Since browsers require more work to do file operations, webgl isn't directly implemented to Open/Save calls. You can check CanvasSampleScene.unity and canvas sample scripts for example usages.
- 
+ - WebGL uses the dedicated `StandaloneFileBrowserWebGL` API instead of the desktop `StandaloneFileBrowser` path-based API.
+ - The desktop `StandaloneFileBrowser` API is intentionally unavailable in WebGL builds; use explicit platform branching.
+ - Opening files returns temporary browser file references (`WebGLFileReference`) with `ObjectUrl`, `Name`, `Size`, `MimeType`, and `LastModifiedUnixMs` metadata.
+ - Recommended read path is `ObjectUrl + UnityWebRequest` / `UnityWebRequestTexture`, then explicit `Release(...)` after the read completes.
+ - Saving uses `SaveFileAsync(fileName, data[, mimeType])` and triggers a browser download rather than a native save dialog.
+ - File filters are picker hints only.
+ - Browser limitations still apply: meaningful `title` / default-directory semantics are not available, and open/save should be triggered directly from a user gesture (OnPointerDown).
+ - If open is triggered outside a valid user gesture, it returns `Error` with an explanatory message; save returns `BlockedByBrowser`.
+ - First-version concurrency is one open request and one save request at a time.
+
+ Example WebGL usage:
+ ```csharp
+ using System.Collections;
+ using SFB;
+ using UnityEngine;
+ using UnityEngine.Networking;
+
+ public void OpenTextFile() {
+     StandaloneFileBrowserWebGL.OpenFilePanelAsync("txt", false, result => {
+         if (result.Status != WebGLFileSelectionStatus.Success || result.Files.Length == 0) {
+             return;
+         }
+
+         var file = result.Files[0];
+         StartCoroutine(ReadTextAndRelease(file));
+     });
+ }
+
+ private IEnumerator ReadTextAndRelease(WebGLFileReference file) {
+     var request = UnityWebRequest.Get(file.ObjectUrl);
+     yield return request.SendWebRequest();
+
+     if (request.result == UnityWebRequest.Result.Success) {
+         Debug.Log(request.downloadHandler.text);
+     }
+
+     StandaloneFileBrowserWebGL.Release(file);
+ }
+
+ public void SaveTextFile(byte[] bytes) {
+     StandaloneFileBrowserWebGL.SaveFileAsync("sample.txt", bytes, result => {
+         Debug.Log(result.Status);
+     });
+ }
+ ```
+
  Live Demo: https://gkngkc.github.io/
