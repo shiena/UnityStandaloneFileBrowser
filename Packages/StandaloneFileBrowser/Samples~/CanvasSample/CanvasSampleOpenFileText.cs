@@ -1,7 +1,5 @@
-using System.Text;
+using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -12,20 +10,32 @@ using SFB;
 public class CanvasSampleOpenFileText : MonoBehaviour, IPointerDownHandler {
     public Text output;
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-    //
-    // WebGL
-    //
-    [DllImport("__Internal")]
-    private static extern void UploadFile(string gameObjectName, string methodName, string filter, bool multiple);
-
+#if UNITY_WEBGL
     public void OnPointerDown(PointerEventData eventData) {
-        UploadFile(gameObject.name, "OnFileUpload", ".txt", false);
+        StandaloneFileBrowserWebGL.OpenFilePanelAsync("txt", false, OnFilesSelected);
     }
 
-    // Called from browser
-    public void OnFileUpload(string url) {
-        StartCoroutine(OutputRoutine(url));
+    private void OnFilesSelected(WebGLFileSelectionResult result) {
+        if (result.Status == WebGLFileSelectionStatus.Success && result.Files.Length > 0) {
+            var file = result.Files[0];
+            Debug.Log($"File selected: {file.Name} , {file.Size} bytes , {file.MimeType} , {DateTimeOffset.FromUnixTimeMilliseconds(file.LastModifiedUnixMs)}");
+            StartCoroutine(OutputRoutine(file.ObjectUrl, delegate {
+                StandaloneFileBrowserWebGL.Release(file);
+            }));
+            return;
+        }
+
+        if (result.Status == WebGLFileSelectionStatus.Cancelled) {
+            output.text = "File selection cancelled";
+            return;
+        }
+
+        if (result.Status == WebGLFileSelectionStatus.Busy) {
+            output.text = "Another file-open request is already in progress";
+            return;
+        }
+
+        output.text = string.IsNullOrEmpty(result.ErrorMessage) ? "Browser file open failed" : result.ErrorMessage;
     }
 #else
     //
@@ -46,17 +56,22 @@ public class CanvasSampleOpenFileText : MonoBehaviour, IPointerDownHandler {
     }
 #endif
 
-    private IEnumerator OutputRoutine(string url) {
+    private IEnumerator OutputRoutine(string url, Action onCompleted = null) {
         UnityWebRequest www = UnityWebRequest.Get(url);
         yield return www.SendWebRequest();
 
         if (www.result != UnityWebRequest.Result.Success)
         {
             Debug.LogError(www.error);
+            output.text = www.error;
         }
         else
         {
             output.text = www.downloadHandler.text;
+        }
+
+        if (onCompleted != null) {
+            onCompleted();
         }
     }
 }

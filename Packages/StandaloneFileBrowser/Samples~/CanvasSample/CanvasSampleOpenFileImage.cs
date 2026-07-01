@@ -1,7 +1,4 @@
-using System.Text;
 using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -12,20 +9,36 @@ using SFB;
 public class CanvasSampleOpenFileImage : MonoBehaviour, IPointerDownHandler {
     public RawImage output;
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-    //
-    // WebGL
-    //
-    [DllImport("__Internal")]
-    private static extern void UploadFile(string gameObjectName, string methodName, string filter, bool multiple);
+    private static readonly ExtensionFilter[] ImageExtensions = {
+        new ExtensionFilter("Image Files", "png", "jpg", "jpeg")
+    };
 
+#if UNITY_WEBGL
     public void OnPointerDown(PointerEventData eventData) {
-        UploadFile(gameObject.name, "OnFileUpload", ".png, .jpg", false);
+        StandaloneFileBrowserWebGL.OpenFilePanelAsync(ImageExtensions, false, OnFilesSelected);
     }
 
-    // Called from browser
-    public void OnFileUpload(string url) {
-        StartCoroutine(OutputRoutine(url));
+    private void OnFilesSelected(WebGLFileSelectionResult result) {
+        if (result.Status == WebGLFileSelectionStatus.Success && result.Files.Length > 0) {
+            var file = result.Files[0];
+            Debug.Log($"File selected: {file.Name} , {file.Size} bytes , {file.MimeType} , {DateTimeOffset.FromUnixTimeMilliseconds(file.LastModifiedUnixMs)}");
+            StartCoroutine(OutputRoutine(file.ObjectUrl, delegate {
+                StandaloneFileBrowserWebGL.Release(file);
+            }));
+            return;
+        }
+
+        if (result.Status == WebGLFileSelectionStatus.Cancelled) {
+            Debug.Log("File selection cancelled");
+            return;
+        }
+
+        if (result.Status == WebGLFileSelectionStatus.Busy) {
+            Debug.LogWarning("Another file-open request is already in progress");
+            return;
+        }
+
+        Debug.LogError(string.IsNullOrEmpty(result.ErrorMessage) ? "Browser file open failed" : result.ErrorMessage);
     }
 #else
     //
@@ -39,14 +52,14 @@ public class CanvasSampleOpenFileImage : MonoBehaviour, IPointerDownHandler {
     }
 
     private void OnClick() {
-        var paths = StandaloneFileBrowser.OpenFilePanel("Title", "", "png", false);
+        var paths = StandaloneFileBrowser.OpenFilePanel("Title", "", ImageExtensions, false);
         if (paths.Length > 0) {
             StartCoroutine(OutputRoutine(new System.Uri(paths[0]).AbsoluteUri));
         }
     }
 #endif
 
-    private IEnumerator OutputRoutine(string url) {
+    private IEnumerator OutputRoutine(string url, System.Action onCompleted = null) {
         UnityWebRequest www = UnityWebRequestTexture.GetTexture(url);
         yield return www.SendWebRequest();
 
@@ -57,6 +70,10 @@ public class CanvasSampleOpenFileImage : MonoBehaviour, IPointerDownHandler {
         else
         {
             output.texture = ((DownloadHandlerTexture)www.downloadHandler).texture;
+        }
+
+        if (onCompleted != null) {
+            onCompleted();
         }
     }
 }

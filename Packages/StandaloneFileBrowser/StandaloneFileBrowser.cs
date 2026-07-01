@@ -11,6 +11,11 @@ namespace SFB {
         }
     }
 
+#if !UNITY_WEBGL || UNITY_EDITOR
+    /// <summary>
+    /// Desktop/editor-only native file dialog API.
+    /// WebGL builds must use StandaloneFileBrowserWebGL with explicit platform branching.
+    /// </summary>
     public class StandaloneFileBrowser {
         private static IStandaloneFileBrowser _platformWrapper = null;
 
@@ -150,4 +155,5 @@ namespace SFB {
             _platformWrapper.SaveFilePanelAsync(title, directory, defaultName, extensions, cb);
         }
     }
+#endif
 }
