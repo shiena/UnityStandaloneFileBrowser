@@ -16,7 +16,7 @@ public class CanvasSampleOpenFileText : MonoBehaviour, IPointerDownHandler {
     }
 
     private void OnFilesSelected(WebGLFileSelectionResult result) {
-        if (result.Status == WebGLFileSelectionStatus.Success && result.Files.Length > 0) {
+        if (result.Status == WebGLFileBrowserStatus.Success && result.Files.Length > 0) {
             var file = result.Files[0];
             Debug.Log($"File selected: {file.Name} , {file.Size} bytes , {file.MimeType} , {DateTimeOffset.FromUnixTimeMilliseconds(file.LastModifiedUnixMs)}");
             StartCoroutine(OutputRoutine(file.ObjectUrl, delegate {
@@ -25,13 +25,18 @@ public class CanvasSampleOpenFileText : MonoBehaviour, IPointerDownHandler {
             return;
         }
 
-        if (result.Status == WebGLFileSelectionStatus.Cancelled) {
+        if (result.Status == WebGLFileBrowserStatus.Cancelled) {
             output.text = "File selection cancelled";
             return;
         }
 
-        if (result.Status == WebGLFileSelectionStatus.Busy) {
+        if (result.Status == WebGLFileBrowserStatus.Busy) {
             output.text = "Another file-open request is already in progress";
+            return;
+        }
+
+        if (result.Status == WebGLFileBrowserStatus.BlockedByBrowser) {
+            output.text = string.IsNullOrEmpty(result.ErrorMessage) ? "Browser blocked the file-open request" : result.ErrorMessage;
             return;
         }
 

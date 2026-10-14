@@ -20,17 +20,22 @@ public class CanvasSampleSaveFileText : MonoBehaviour, IPointerDownHandler {
     }
 
     private void OnFileSaved(WebGLSaveResult result) {
-        if (result.Status == WebGLSaveStatus.Success) {
-            output.text = "File successfully downloaded";
+        if (result.Status == WebGLFileBrowserStatus.Success) {
+            output.text = "Download triggered";
             return;
         }
 
-        if (result.Status == WebGLSaveStatus.Busy) {
+        if (result.Status == WebGLFileBrowserStatus.Cancelled) {
+            output.text = "Save request cancelled";
+            return;
+        }
+
+        if (result.Status == WebGLFileBrowserStatus.Busy) {
             output.text = "Another save request is already in progress";
             return;
         }
 
-        if (result.Status == WebGLSaveStatus.BlockedByBrowser) {
+        if (result.Status == WebGLFileBrowserStatus.BlockedByBrowser) {
             output.text = string.IsNullOrEmpty(result.ErrorMessage) ? "Browser blocked the download request" : result.ErrorMessage;
             return;
         }

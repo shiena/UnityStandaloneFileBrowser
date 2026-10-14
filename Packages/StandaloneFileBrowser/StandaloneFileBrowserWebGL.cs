@@ -7,18 +7,12 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 
 namespace SFB {
-    public enum WebGLFileSelectionStatus {
-        Success,
-        Cancelled,
-        Busy,
-        Error,
-    }
-
-    public enum WebGLSaveStatus {
-        Success,
-        BlockedByBrowser,
-        Busy,
-        Error,
+    public enum WebGLFileBrowserStatus {
+        Success = 0,
+        Cancelled = 1,
+        Busy = 2,
+        Error = 3,
+        BlockedByBrowser = 4,
     }
 
     [Serializable]
@@ -33,7 +27,7 @@ namespace SFB {
 
     [Serializable]
     public sealed class WebGLFileSelectionResult {
-        public WebGLFileSelectionStatus Status;
+        public WebGLFileBrowserStatus Status;
         public WebGLFileReference[] Files;
         public string ErrorMessage;
 
@@ -45,7 +39,7 @@ namespace SFB {
 
     [Serializable]
     public sealed class WebGLSaveResult {
-        public WebGLSaveStatus Status;
+        public WebGLFileBrowserStatus Status;
         public string ErrorMessage;
 
         public WebGLSaveResult() {
@@ -114,6 +108,26 @@ namespace SFB {
             StandaloneFileBrowserWebGLBridge.Instance.ReleaseAll();
 #endif
         }
+
+        internal static WebGLFileBrowserStatus ParseStatus(string status) {
+            if (string.Equals(status, "success", StringComparison.OrdinalIgnoreCase)) {
+                return WebGLFileBrowserStatus.Success;
+            }
+
+            if (string.Equals(status, "cancelled", StringComparison.OrdinalIgnoreCase)) {
+                return WebGLFileBrowserStatus.Cancelled;
+            }
+
+            if (string.Equals(status, "blocked-by-browser", StringComparison.OrdinalIgnoreCase)) {
+                return WebGLFileBrowserStatus.BlockedByBrowser;
+            }
+
+            if (string.Equals(status, "busy", StringComparison.OrdinalIgnoreCase)) {
+                return WebGLFileBrowserStatus.Busy;
+            }
+
+            return WebGLFileBrowserStatus.Error;
+        }
     }
 
 #if UNITY_EDITOR
@@ -133,17 +147,20 @@ namespace SFB {
                 return;
             }
 
+            WebGLFileSelectionResult result;
             _activeOpenRequests++;
             try {
                 var paths = StandaloneFileBrowser.OpenFilePanel(string.Empty, string.Empty, extensions, multiselect);
-                cb.Invoke(CreateOpenResult(paths));
+                result = CreateOpenResult(paths);
             }
             catch (Exception exception) {
-                cb.Invoke(CreateErrorOpenResult(exception.Message));
+                result = CreateErrorOpenResult(exception.Message);
             }
             finally {
                 _activeOpenRequests--;
             }
+
+            cb.Invoke(result);
         }
 
         public static void SaveFileAsync(string fileName, byte[] data, string mimeType, Action<WebGLSaveResult> cb) {
@@ -161,6 +178,7 @@ namespace SFB {
                 return;
             }
 
+            WebGLSaveResult result;
             _activeSaveRequests++;
             try {
                 var extension = Path.GetExtension(fileName);
@@ -171,20 +189,22 @@ namespace SFB {
                 var defaultName = Path.GetFileNameWithoutExtension(fileName);
                 var path = StandaloneFileBrowser.SaveFilePanel(string.Empty, string.Empty, defaultName, string.IsNullOrEmpty(extension) ? null : new [] { new ExtensionFilter(string.Empty, extension) });
                 if (string.IsNullOrEmpty(path)) {
-                    cb.Invoke(CreateSaveResult("cancelled", string.Empty));
-                    return;
+                    result = CreateSaveResult("cancelled", string.Empty);
                 }
-
-                var buffer = data ?? new byte[0];
-                File.WriteAllBytes(path, buffer);
-                cb.Invoke(CreateSaveResult("success", string.Empty));
+                else {
+                    var buffer = data ?? new byte[0];
+                    File.WriteAllBytes(path, buffer);
+                    result = CreateSaveResult("success", string.Empty);
+                }
             }
             catch (Exception exception) {
-                cb.Invoke(CreateErrorSaveResult(exception.Message));
+                result = CreateErrorSaveResult(exception.Message);
             }
             finally {
                 _activeSaveRequests--;
             }
+
+            cb.Invoke(result);
         }
 
         public static void Release(WebGLFileReference file) {
@@ -212,11 +232,11 @@ namespace SFB {
         private static WebGLFileSelectionResult CreateOpenResult(string[] paths) {
             var result = new WebGLFileSelectionResult();
             if (paths == null || paths.Length == 0) {
-                result.Status = WebGLFileSelectionStatus.Cancelled;
+                result.Status = WebGLFileBrowserStatus.Cancelled;
                 return result;
             }
 
-            result.Status = WebGLFileSelectionStatus.Success;
+            result.Status = WebGLFileBrowserStatus.Success;
             result.Files = new WebGLFileReference[paths.Length];
             for (var i = 0; i < paths.Length; i++) {
                 var path = paths[i];
@@ -239,33 +259,33 @@ namespace SFB {
 
         private static WebGLFileSelectionResult CreateBusyOpenResult() {
             var result = new WebGLFileSelectionResult();
-            result.Status = WebGLFileSelectionStatus.Busy;
+            result.Status = WebGLFileBrowserStatus.Busy;
             return result;
         }
 
         private static WebGLFileSelectionResult CreateErrorOpenResult(string message) {
             var result = new WebGLFileSelectionResult();
-            result.Status = WebGLFileSelectionStatus.Error;
+            result.Status = WebGLFileBrowserStatus.Error;
             result.ErrorMessage = string.IsNullOrEmpty(message) ? "Browser file open failed." : message;
             return result;
         }
 
         private static WebGLSaveResult CreateBusySaveResult() {
             var result = new WebGLSaveResult();
-            result.Status = WebGLSaveStatus.Busy;
+            result.Status = WebGLFileBrowserStatus.Busy;
             return result;
         }
 
         private static WebGLSaveResult CreateErrorSaveResult(string message) {
             var result = new WebGLSaveResult();
-            result.Status = WebGLSaveStatus.Error;
+            result.Status = WebGLFileBrowserStatus.Error;
             result.ErrorMessage = string.IsNullOrEmpty(message) ? "Browser file save failed." : message;
             return result;
         }
 
         private static WebGLSaveResult CreateSaveResult(string status, string errorMessage) {
             var result = new WebGLSaveResult();
-            result.Status = ParseSaveStatus(status);
+            result.Status = StandaloneFileBrowserWebGL.ParseStatus(status);
             result.ErrorMessage = errorMessage ?? string.Empty;
             return result;
         }
@@ -273,22 +293,6 @@ namespace SFB {
         private static string CreateHandleId() {
             _nextHandleId++;
             return "editor-handle-" + _nextHandleId;
-        }
-
-        private static WebGLSaveStatus ParseSaveStatus(string status) {
-            if (string.Equals(status, "success", StringComparison.OrdinalIgnoreCase)) {
-                return WebGLSaveStatus.Success;
-            }
-
-            if (string.Equals(status, "blocked-by-browser", StringComparison.OrdinalIgnoreCase)) {
-                return WebGLSaveStatus.BlockedByBrowser;
-            }
-
-            if (string.Equals(status, "busy", StringComparison.OrdinalIgnoreCase)) {
-                return WebGLSaveStatus.Busy;
-            }
-
-            return WebGLSaveStatus.Error;
         }
     }
 #endif

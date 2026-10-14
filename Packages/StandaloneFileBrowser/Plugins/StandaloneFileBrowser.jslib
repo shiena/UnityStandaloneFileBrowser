@@ -30,6 +30,123 @@ var StandaloneFileBrowserWebGLPlugin = {
             return this.ensureState();
         },
 
+        resolveUnityCanvas: function() {
+            if (typeof Module !== 'undefined' && Module['canvas']) {
+                return Module['canvas'];
+            }
+
+            return document.querySelector('canvas');
+        },
+
+        armPointerUpTrigger: function(onTrigger, onAbort) {
+            var disarmed = false;
+            var disarm = function() {
+                if (disarmed) return;
+                disarmed = true;
+                document.removeEventListener('pointerdown', onAbortByNewDown, true);
+                document.removeEventListener('pointerup', onTriggerByUp, false);
+            };
+
+            // Wait for a native pointerup before opening the picker or triggering a download.
+            // Opening the picker during OnPointerDown can take focus before Unity receives
+            // the release, leaving its input state pressed. A native browser event handler
+            // also provides the user-gesture context required by Safari and mobile browsers;
+            // compatibility mouse events generated from touch are not reliable triggers.
+            var onTriggerByUp = function(event) {
+                if (disarmed) return;
+                disarm();
+                onTrigger(event);
+            };
+
+            // A new pointerdown means the previous release was missed. Abort in the capture
+            // phase, before Unity handles the new press, so it can start a fresh request.
+            // This only guards the phase before the browser operation is triggered.
+            var onAbortByNewDown = function(event) {
+                if (disarmed) return;
+                disarm();
+                onAbort(event);
+            };
+
+            document.addEventListener('pointerdown', onAbortByNewDown, true);
+            document.addEventListener('pointerup', onTriggerByUp, false);
+
+            return disarm;
+        },
+
+        armFileOpenTrigger: function(request, fileInput) {
+            var helpers = this;
+            return this.armPointerUpTrigger(function() {
+                try {
+                    // Touch activation may only become available on pointerup.
+                    if (typeof navigator !== 'undefined' && navigator.userActivation && navigator.userActivation.isActive === false) {
+                        var errorMessage = 'Browser file picker must be triggered from a user gesture.';
+                        if (typeof console !== 'undefined' && console.error) console.error(errorMessage);
+                        helpers.completeOpenRequest(
+                            request,
+                            helpers.createOpenResponse(request.requestId, 'blocked-by-browser', [], errorMessage)
+                        );
+                        return;
+                    }
+
+                    fileInput.click();
+                } catch (error) {
+                    helpers.completeOpenRequest(
+                        request,
+                        helpers.createOpenResponse(
+                            request.requestId,
+                            'error',
+                            [],
+                            error && error.message ? error.message : 'Browser file open failed.'
+                        )
+                    );
+                }
+            }, function() {
+                helpers.completeOpenRequest(
+                    request,
+                    helpers.createOpenResponse(request.requestId, 'cancelled', [], '')
+                );
+            });
+        },
+
+        armFileSaveTrigger: function(request) {
+            var helpers = this;
+            return this.armPointerUpTrigger(function() {
+                try {
+                    if (typeof navigator !== 'undefined' && navigator.userActivation && navigator.userActivation.isActive === false) {
+                        helpers.completeSaveRequest(
+                            request,
+                            helpers.createSaveResponse(
+                                request.requestId,
+                                'blocked-by-browser',
+                                'Browser download must be triggered from a user gesture.'
+                            )
+                        );
+                        return;
+                    }
+
+                    request.anchor.click();
+                    helpers.completeSaveRequest(
+                        request,
+                        helpers.createSaveResponse(request.requestId, 'success', '')
+                    );
+                } catch (error) {
+                    helpers.completeSaveRequest(
+                        request,
+                        helpers.createSaveResponse(
+                            request.requestId,
+                            'error',
+                            error && error.message ? error.message : 'Browser file save failed.'
+                        )
+                    );
+                }
+            }, function() {
+                helpers.completeSaveRequest(
+                    request,
+                    helpers.createSaveResponse(request.requestId, 'cancelled', '')
+                );
+            });
+        },
+
         createHandleId: function() {
             var state = this.getState();
             state.nextHandleId += 1;
@@ -81,6 +198,11 @@ var StandaloneFileBrowserWebGLPlugin = {
         cleanupOpenRequest: function(request) {
             if (!request) return;
 
+            if (request.interceptorDisarm) {
+                request.interceptorDisarm();
+                request.interceptorDisarm = null;
+            }
+
             if (request.input) {
                 if (request.changeHandler) request.input.removeEventListener('change', request.changeHandler);
                 if (request.cancelHandler) request.input.removeEventListener('cancel', request.cancelHandler);
@@ -99,6 +221,10 @@ var StandaloneFileBrowserWebGLPlugin = {
 
         cleanupSaveRequest: function(request, revokeObjectUrlAsync) {
             if (!request) return;
+            if (request.interceptorDisarm) {
+                request.interceptorDisarm();
+                request.interceptorDisarm = null;
+            }
             if (request.anchor && request.anchor.parentNode) {
                 request.anchor.parentNode.removeChild(request.anchor);
             }
@@ -141,17 +267,6 @@ var StandaloneFileBrowserWebGLPlugin = {
             return;
         }
 
-        if (typeof navigator !== 'undefined' && navigator.userActivation && navigator.userActivation.isActive === false) {
-            var errorMessage = 'Browser file picker must be triggered from a user gesture.';
-            if (typeof console !== 'undefined' && console.error) console.error(errorMessage);
-            helpers.sendMessage(
-                gameObjectName,
-                methodName,
-                helpers.createOpenResponse(requestId, 'error', [], errorMessage)
-            );
-            return;
-        }
-
         var request = {
             gameObjectName: gameObjectName,
             methodName: methodName,
@@ -159,7 +274,7 @@ var StandaloneFileBrowserWebGLPlugin = {
             input: null,
             changeHandler: null,
             cancelHandler: null,
-            focusHandler: null,
+            interceptorDisarm: null,
             completed: false
         };
         state.activeOpenRequest = request;
@@ -226,7 +341,8 @@ var StandaloneFileBrowserWebGLPlugin = {
             fileInput.addEventListener('cancel', request.cancelHandler);
 
             document.body.appendChild(fileInput);
-            fileInput.click();
+            request.interceptorDisarm = helpers.armFileOpenTrigger(request, fileInput);
+
         } catch (error) {
             helpers.completeOpenRequest(
                 request,
@@ -265,23 +381,14 @@ var StandaloneFileBrowserWebGLPlugin = {
             requestId: requestId,
             anchor: null,
             objectUrl: null,
+            interceptorDisarm: null,
             completed: false
         };
         state.activeSaveRequest = request;
 
         try {
-            if (typeof navigator !== 'undefined' && navigator.userActivation && navigator.userActivation.isActive === false) {
-                helpers.completeSaveRequest(
-                    request,
-                    helpers.createSaveResponse(
-                        request.requestId,
-                        'blocked-by-browser',
-                        'Browser download must be triggered from a user gesture.'
-                    )
-                );
-                return;
-            }
-
+            // Copy and prepare the Blob before returning; the marshalled heap pointer
+            // must not be read by the later pointerup handler.
             var bytes = new Uint8Array(byteArraySize);
             if (byteArraySize > 0) bytes.set(HEAPU8.subarray(byteArray, byteArray + byteArraySize));
 
@@ -292,12 +399,7 @@ var StandaloneFileBrowserWebGLPlugin = {
             request.anchor.setAttribute('style', 'display:none;');
             request.anchor.href = request.objectUrl;
             document.body.appendChild(request.anchor);
-            request.anchor.click();
-
-            helpers.completeSaveRequest(
-                request,
-                helpers.createSaveResponse(request.requestId, 'success', '')
-            );
+            request.interceptorDisarm = helpers.armFileSaveTrigger(request);
         } catch (error) {
             helpers.completeSaveRequest(
                 request,

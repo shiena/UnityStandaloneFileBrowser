@@ -114,9 +114,30 @@ WebGL:
  - Recommended read path is `ObjectUrl + UnityWebRequest` / `UnityWebRequestTexture`, then explicit `Release(...)` after the read completes.
  - Saving uses `SaveFileAsync(fileName, data[, mimeType])` and triggers a browser download rather than a native save dialog.
  - File filters are picker hints only.
- - Browser limitations still apply: meaningful `title` / default-directory semantics are not available, and open/save should be triggered directly from a user gesture (OnPointerDown).
- - If open is triggered outside a valid user gesture, it returns `Error` with an explanatory message; save returns `BlockedByBrowser`.
+ - Browser limitations still apply: meaningful `title` / default-directory semantics are not available. For opening and saving files, call the API from `IPointerDownHandler.OnPointerDown`, as in the canvas samples; the JS bridge arms the request and triggers the picker or download on the next native `pointerup` event. Do not use `Button.onClick`, keyboard activation, or delayed/programmatic calls with this implementation.
+ - When the browser exposes `navigator.userActivation`, both open and save check transient activation in the native `pointerup` handler immediately before invoking the picker or download, allowing touch activation to become available on release. A failed check returns `BlockedByBrowser` for either operation. Browser policy can also block a picker or download without reporting an error to the plugin.
+ - Save copies the supplied bytes and prepares the Blob synchronously; only activation checking and download triggering wait for `pointerup`. `Success` means the download was triggered, not that the file was written to disk. If a new pointerdown occurs before the expected release, the armed save returns `Cancelled` and releases its resources so another request can start.
  - First-version concurrency is one open request and one save request at a time.
+
+ ### Result status
+
+ Both `WebGLFileSelectionResult.Status` and `WebGLSaveResult.Status` use the shared `WebGLFileBrowserStatus` enum:
+
+ | Status | Open | Save |
+ | --- | --- | --- |
+ | `Success` | Files were selected. | The download was triggered; completion is not observed. |
+ | `Cancelled` | The picker was cancelled, or the request was abandoned before the picker opened. | The Editor save dialog was cancelled, or the request was abandoned before the download was triggered. |
+ | `BlockedByBrowser` | The activation check failed before opening the picker. | The activation check failed before triggering the download. |
+ | `Busy` | Another open request is pending. | Another save request is pending. |
+ | `Error` | A file operation, bridge call, or response failed. | Data preparation, download triggering, or a bridge call/response failed. |
+
+ A browser download's cancellation after triggering cannot be observed by this API. `BlockedByBrowser` identifies a detected activation failure, not every possible browser restriction; some restrictions can silently prevent an operation.
+
+ ### Browser compatibility
+
+ File-picker cancellation relies on the [`HTMLInputElement` `cancel` event](https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/cancel_event). The supported minimum versions for this cancellation behavior are Chrome / Edge 113, Firefox 91, and Safari / iOS Safari 16.4 (Chrome for Android: 113). These are the minimum versions for this event, not a guarantee of compatibility with every Unity WebGL build; the Unity version and other browser requirements also apply.
+
+ Older browsers are not supported for reliable file-picker cancellation. Without the `cancel` event, closing the picker without selecting a file may leave the request pending, and subsequent open requests can return `Busy`. `ReleaseAll()` releases file references and object URLs only; it does not cancel or reset pending requests. There is currently no cancellation fallback or public request-reset API. The new-pointerdown guard only cancels a request whose pointer release was missed **before** the picker opens; it is not a fallback for cancelling an already-open picker.
 
  Example WebGL usage:
  ```csharp
@@ -127,7 +148,16 @@ WebGL:
 
  public void OpenTextFile() {
      StandaloneFileBrowserWebGL.OpenFilePanelAsync("txt", false, result => {
-         if (result.Status != WebGLFileSelectionStatus.Success || result.Files.Length == 0) {
+         if (result.Status == WebGLFileBrowserStatus.Cancelled) {
+             return;
+         }
+
+         if (result.Status == WebGLFileBrowserStatus.BlockedByBrowser) {
+             Debug.LogWarning(result.ErrorMessage);
+             return;
+         }
+
+         if (result.Status != WebGLFileBrowserStatus.Success || result.Files.Length == 0) {
              return;
          }
 

@@ -264,13 +264,13 @@ namespace SFB
         private WebGLFileSelectionResult CreateOpenResult(WebGLFileSelectionResponse response)
         {
             var result = new WebGLFileSelectionResult();
-            result.Status = ParseSelectionStatus(response.status);
+            result.Status = StandaloneFileBrowserWebGL.ParseStatus(response.status);
             result.ErrorMessage = response.errorMessage ?? string.Empty;
             result.Files = ConvertFiles(response.files);
 
-            if (result.Status == WebGLFileSelectionStatus.Success && result.Files.Length == 0)
+            if (result.Status == WebGLFileBrowserStatus.Success && result.Files.Length == 0)
             {
-                result.Status = WebGLFileSelectionStatus.Cancelled;
+                result.Status = WebGLFileBrowserStatus.Cancelled;
             }
 
             for (var i = 0; i < result.Files.Length; i++)
@@ -290,7 +290,7 @@ namespace SFB
         private static WebGLSaveResult CreateSaveResult(WebGLSaveResponse response)
         {
             var result = new WebGLSaveResult();
-            result.Status = ParseSaveStatus(response.status);
+            result.Status = StandaloneFileBrowserWebGL.ParseStatus(response.status);
             result.ErrorMessage = response.errorMessage ?? string.Empty;
             return result;
         }
@@ -298,14 +298,14 @@ namespace SFB
         private static WebGLFileSelectionResult CreateBusyOpenResult()
         {
             var result = new WebGLFileSelectionResult();
-            result.Status = WebGLFileSelectionStatus.Busy;
+            result.Status = WebGLFileBrowserStatus.Busy;
             return result;
         }
 
         private static WebGLFileSelectionResult CreateErrorOpenResult(string message)
         {
             var result = new WebGLFileSelectionResult();
-            result.Status = WebGLFileSelectionStatus.Error;
+            result.Status = WebGLFileBrowserStatus.Error;
             result.ErrorMessage = string.IsNullOrEmpty(message) ? "Browser file open failed." : message;
             return result;
         }
@@ -313,14 +313,14 @@ namespace SFB
         private static WebGLSaveResult CreateBusySaveResult()
         {
             var result = new WebGLSaveResult();
-            result.Status = WebGLSaveStatus.Busy;
+            result.Status = WebGLFileBrowserStatus.Busy;
             return result;
         }
 
         private static WebGLSaveResult CreateErrorSaveResult(string message)
         {
             var result = new WebGLSaveResult();
-            result.Status = WebGLSaveStatus.Error;
+            result.Status = WebGLFileBrowserStatus.Error;
             result.ErrorMessage = string.IsNullOrEmpty(message) ? "Browser file save failed." : message;
             return result;
         }
@@ -364,46 +364,6 @@ namespace SFB
             }
 
             return 0;
-        }
-
-        private static WebGLFileSelectionStatus ParseSelectionStatus(string status)
-        {
-            if (string.Equals(status, "success", StringComparison.OrdinalIgnoreCase))
-            {
-                return WebGLFileSelectionStatus.Success;
-            }
-
-            if (string.Equals(status, "cancelled", StringComparison.OrdinalIgnoreCase))
-            {
-                return WebGLFileSelectionStatus.Cancelled;
-            }
-
-            if (string.Equals(status, "busy", StringComparison.OrdinalIgnoreCase))
-            {
-                return WebGLFileSelectionStatus.Busy;
-            }
-
-            return WebGLFileSelectionStatus.Error;
-        }
-
-        private static WebGLSaveStatus ParseSaveStatus(string status)
-        {
-            if (string.Equals(status, "success", StringComparison.OrdinalIgnoreCase))
-            {
-                return WebGLSaveStatus.Success;
-            }
-
-            if (string.Equals(status, "blocked-by-browser", StringComparison.OrdinalIgnoreCase))
-            {
-                return WebGLSaveStatus.BlockedByBrowser;
-            }
-
-            if (string.Equals(status, "busy", StringComparison.OrdinalIgnoreCase))
-            {
-                return WebGLSaveStatus.Busy;
-            }
-
-            return WebGLSaveStatus.Error;
         }
 
         private static WebGLFileSelectionResponse DeserializeOpenResponse(string message)
