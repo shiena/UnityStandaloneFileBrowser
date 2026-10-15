@@ -45,6 +45,7 @@ var StandaloneFileBrowserWebGLPlugin = {
                 disarmed = true;
                 document.removeEventListener('pointerdown', onAbortByNewDown, true);
                 document.removeEventListener('pointerup', onTriggerByUp, false);
+                document.removeEventListener('pointercancel', onAbortByCancel, true);
             };
 
             // Wait for a native pointerup before opening the picker or triggering a download.
@@ -67,8 +68,16 @@ var StandaloneFileBrowserWebGLPlugin = {
                 onAbort(event);
             };
 
+            // Explicit cancellation supplements the new-pointerdown fallback for missed releases.
+            var onAbortByCancel = function(event) {
+                if (disarmed) return;
+                disarm();
+                onAbort(event);
+            };
+
             document.addEventListener('pointerdown', onAbortByNewDown, true);
             document.addEventListener('pointerup', onTriggerByUp, false);
+            document.addEventListener('pointercancel', onAbortByCancel, true);
 
             return disarm;
         },
