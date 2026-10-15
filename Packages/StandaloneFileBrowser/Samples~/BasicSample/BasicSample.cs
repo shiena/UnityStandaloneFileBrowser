@@ -14,6 +14,11 @@ public class BasicSample : MonoBehaviour {
         GUILayout.Space(20);
         GUILayout.BeginVertical();
 
+#if UNITY_WEBGL
+        GUILayout.Label("BasicSample uses the desktop StandaloneFileBrowser API.");
+        GUILayout.Space(5);
+        GUILayout.Label("WebGL builds must use StandaloneFileBrowserWebGL with explicit platform branching.");
+#else
         // Open File Samples
 
         if (GUILayout.Button("Open File")) {
@@ -95,6 +100,7 @@ public class BasicSample : MonoBehaviour {
             };
             _path = StandaloneFileBrowser.SaveFilePanel("Save File", "", "MySaveFile", extensionList);
         }
+#endif
 
         GUILayout.EndVertical();
         GUILayout.Space(20);
