@@ -116,7 +116,9 @@ WebGL:
  - File filters are picker hints only.
  - Browser limitations still apply: meaningful `title` / default-directory semantics are not available. For opening and saving files, call the API from `IPointerDownHandler.OnPointerDown`, as in the canvas samples; the JS bridge arms the request and triggers the picker or download on the next native `pointerup` event. Do not use `Button.onClick`, keyboard activation, or delayed/programmatic calls with this implementation.
  - When the browser exposes `navigator.userActivation`, both open and save check transient activation in the native `pointerup` handler immediately before invoking the picker or download, allowing touch activation to become available on release. A failed check returns `BlockedByBrowser` for either operation. Browser policy can also block a picker or download without reporting an error to the plugin.
- - Save copies the supplied bytes and prepares the Blob synchronously; only activation checking and download triggering wait for `pointerup`. `Success` means the download was triggered, not that the file was written to disk. If a new pointerdown occurs before the expected release, the armed save returns `Cancelled` and releases its resources so another request can start.
+ - Save copies the supplied bytes and prepares the Blob synchronously; only activation checking and download triggering wait for `pointerup`. `Success` means the download was triggered, not that the file was written to disk.
+ - An armed open or save request completes with `Cancelled` and releases its resources when a native `pointercancel` occurs, or when a new `pointerdown` occurs before the expected release. The new press is handled after the cancellation, so it can start a fresh request.
+ - Unity processes `OnPointerDown` in its frame loop, after the native event. If the pointer is released before Unity handles the press (for example, a very quick tap at a low frame rate), the request misses its `pointerup` and nothing opens. The next press cancels that request with `Cancelled` and can start a new one.
  - First-version concurrency is one open request and one save request at a time.
 
  ### Result status
